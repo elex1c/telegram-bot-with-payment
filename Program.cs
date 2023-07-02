@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using System.Collections;
+using Telegram.Bot;
 
 namespace TelegramBotWithPayment
 {
@@ -6,7 +7,12 @@ namespace TelegramBotWithPayment
     {         
         static async Task Main(string[] args)
         {
-            TelegramBotClient botClient = new TelegramBotClient("{YOUR_ACCESS_TOKEN_HERE}");
+            string? telegramBotToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
+            
+            if (telegramBotToken == null)
+               throw new NullReferenceException("Telegram token equals null");
+            
+            TelegramBotClient botClient = new TelegramBotClient(telegramBotToken);
 
             TelegramBotHandling telegramBotHandling = new();
 

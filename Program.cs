@@ -1,10 +1,18 @@
-﻿namespace TelegramBotWithPayment
+﻿using Telegram.Bot;
+
+namespace TelegramBotWithPayment
 {
     class Program
     {         
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            
+            TelegramBotClient botClient = new TelegramBotClient("{YOUR_ACCESS_TOKEN_HERE}");
+
+            TelegramBotHandling telegramBotHandling = new();
+
+            telegramBotHandling.StartTelegramBotHandling(botClient);
+
+            Console.ReadKey();
         }
     }
 }

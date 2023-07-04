@@ -6,7 +6,7 @@ namespace TelegramBotWithPayment
 {
     class Program
     {         
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             string? telegramBotToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
             string? mongoConnectionString = Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING");
@@ -17,8 +17,8 @@ namespace TelegramBotWithPayment
                 throw new NullReferenceException("Mongo connection string equals null");
             
             TelegramBotClient botClient = new(telegramBotToken);
-            TelegramBotHandling telegramBotHandling = new();
             MongoBase mongoBase = new(mongoConnectionString);
+            TelegramBotHandling telegramBotHandling = new(mongoBase);
             
             telegramBotHandling.StartTelegramBotHandling(botClient);
 

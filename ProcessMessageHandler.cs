@@ -1,3 +1,4 @@
+using MongoDB.Driver.Core.WireProtocol.Messages;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramBotWithPayment.CrystalPay;
@@ -9,10 +10,11 @@ namespace TelegramBotWithPayment;
 public class ProcessMessageHandler
 {
     private string GreetingMessage => ", welcome to our bot! 👋\n\n We're thrilled to have you on board. Allow us to introduce you to our fantastic payment bot, your trusted companion for all your financial needs. 💳💸\n\n Whether you're looking to send or receive payments, manage transactions, or track your expenses, our payment bot is here to simplify your financial life. 💲 \n\nWith its user-friendly interface and robust security measures, you can handle your finances with confidence and ease. Our payment bot offers a range of convenient features, such as seamless integration with popular payment platforms, real-time notifications, and personalized transaction history. It's designed to save you time and effort, so you can focus on what matters most to you. 👨‍💻";
-    private string DepositMessage => "";
+    private string DepositMessage => "Hello";
     private string ResponseMessage { get; set; }
     private MongoBase CurrentMongoBase { get; }
     private CrystalPayApiCommands CurrentApiCommands { get; }
+    private ProcessMessageResponse ProcessMessageResponse { get; set; }
     private long UserId { get; set; }
 
     public ProcessMessageHandler(MongoBase mongoBase, CrystalPayApiCommands apiCommands)
@@ -20,7 +22,7 @@ public class ProcessMessageHandler
         CurrentMongoBase = mongoBase;
         CurrentApiCommands = apiCommands;
     }
-    public string Process(Update update)
+    public ProcessMessageResponse Process(Update update)
     {
         switch (update.Type)
         {
@@ -32,19 +34,19 @@ public class ProcessMessageHandler
                     if (update.Message.From != null)
                         UserId = update.Message.From.Id;
                     else
-                        return "Error";
+                        return new ProcessMessageResponse("Error");
 
-                    ResponseMessage = ProcessTextMessage(update.Message.Text, username);
+                    ProcessMessageResponse = ProcessTextMessage(update.Message.Text, username);
                 }
                 break;
             default:
-                return "You have sent incorrect type of message!";
+                return new ProcessMessageResponse("You have sent incorrect type of message!");
         }
 
-        return ResponseMessage;
+        return ProcessMessageResponse;
     }
 
-    private string ProcessTextMessage(string message, string senderUsername)
+    private ProcessMessageResponse ProcessTextMessage(string message, string senderUsername)
     {
         switch (message)
         {
@@ -54,24 +56,26 @@ public class ProcessMessageHandler
                 UpdateUserStage("Start");
                 
                 ResponseMessage = senderUsername + GreetingMessage;
+
+                ProcessMessageResponse = new ProcessMessageResponse(ResponseMessage);
                 
-                return ResponseMessage;
+                return ProcessMessageResponse;
             case "Menu":
                 ResponseMessage = GetMenu();
                 
                 UpdateUserStage("Menu");
                 
-                return ResponseMessage;
+                return new ProcessMessageResponse(ResponseMessage);
             case "Make a transfer":
-                return senderUsername;
+                return new ProcessMessageResponse(senderUsername);
             case "Deposit":
                 UpdateUserStage("Deposit");
                 
-                return senderUsername;
+                return new ProcessMessageResponse(DepositMessage, InlineButtons.GetStartDepositButtons());
             case "Invite link":
-                return senderUsername;
+                return new ProcessMessageResponse(senderUsername);
             default:
-                return "You have sent incorrect type of message";
+                return new ProcessMessageResponse("You have sent incorrect type of message");
         }
     }
 

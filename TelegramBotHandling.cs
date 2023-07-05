@@ -31,12 +31,23 @@ public class TelegramBotHandling
         
         ProcessMessageHandler processMessageHandler = new ProcessMessageHandler(CurrentMongoBase, CurrentApiCommands);
         
-        string responseMessage = processMessageHandler.Process(update);
+        ProcessMessageResponse processMessageResponse = processMessageHandler.Process(update);
 
-        if (responseMessage is "Error" or "Sequence contains no elements")
+        if (processMessageResponse.ResponseMessage is "Error" or "Sequence contains no elements")
             return;
         
-        await botClient.SendTextMessageAsync(update.Message.Chat.Id, responseMessage, replyMarkup: StaticButtons.GetButtons(), cancellationToken: CancellationToken);
+        if(processMessageResponse.InlineButtons == null)
+            await botClient.SendTextMessageAsync(
+                update.Message.Chat.Id,
+                processMessageResponse.ResponseMessage,
+                replyMarkup: StaticButtons.GetButtons(),
+                cancellationToken: CancellationToken);
+        else
+            await botClient.SendTextMessageAsync(
+                update.Message.Chat.Id,
+                processMessageResponse.ResponseMessage,
+                replyMarkup: processMessageResponse.InlineButtons,
+                cancellationToken: CancellationToken);
     }
 
     Task PollingErrorHandler(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)

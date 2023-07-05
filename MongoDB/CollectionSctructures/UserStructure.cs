@@ -2,7 +2,8 @@ namespace TelegramBotWithPayment.MongoDB.CollectionSctructures;
 
 public class UserStructure
 {
-    public string userid { get; set; }
-    public string balance { get; set; }
-    public string activeorder { get; set; }
+    public string userid { get; init; }
+    public string balance { get; init; }
+    public string activeorder { get; init; }
+    public string stage { get; init; }
 }

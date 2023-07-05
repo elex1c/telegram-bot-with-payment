@@ -46,9 +46,24 @@ public class Commands
         }
     }
 
-    public void AddValue<T>(string valueName, T insertedValue)
+    public bool UpdateValue<T>(string valueName, T searchingValue, string updatedValueName, T insertedValue)
     {
-        
+        FilterDefinition<BsonDocument> filter =
+            new FilterDefinitionBuilder<BsonDocument>().Eq(valueName, searchingValue);
+
+        UpdateDefinition<BsonDocument> update = 
+            new UpdateDefinitionBuilder<BsonDocument>().Set(updatedValueName, insertedValue);
+
+        try
+        {
+            BaseCollection.UpdateOne(filter, update);
+
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public bool IsValue<T>(string valueName, T checkingValue)
@@ -78,7 +93,7 @@ public class Commands
             
         try
         {
-            string json = JsonConvert.SerializeObject(new UserStructure() { userid = userId, balance = "0", activeorder = "false"});
+            string json = JsonConvert.SerializeObject(new UserStructure() { userid = userId, balance = "0", activeorder = "false", stage = "Start"});
             
             BaseCollection.InsertOne(BsonDocument.Parse(json));
         }

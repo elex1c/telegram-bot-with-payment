@@ -2,11 +2,11 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TelegramBotWithPayment;
 
-public class Buttons
+public class StaticButtons
 {
     private const string Button1 = "Menu";
-    private const string Button2 = "Make a payment";
-    private const string Button3 = "My Profile";
+    private const string Button2 = "Make a transfer";
+    private const string Button3 = "Deposit";
     private const string Button4 = "Invite link";
     
     public static IReplyMarkup GetButtons()

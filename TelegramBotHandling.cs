@@ -26,28 +26,48 @@ public class TelegramBotHandling
 
     async Task UpdateHandler(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
-        if (update.Message == null)
-            return;
+        if (update.Message != null)
+        {
+            ProcessMessageHandler processMessageHandler = new ProcessMessageHandler(CurrentMongoBase, CurrentApiCommands);
         
-        ProcessMessageHandler processMessageHandler = new ProcessMessageHandler(CurrentMongoBase, CurrentApiCommands);
-        
-        ProcessMessageResponse processMessageResponse = processMessageHandler.Process(update);
+            ProcessMessageResponse processMessageResponse = processMessageHandler.Process(update);
 
-        if (processMessageResponse.ResponseMessage is "Error" or "Sequence contains no elements")
-            return;
+            if (processMessageResponse.ResponseMessage is "Error" or "Sequence contains no elements")
+                return;
         
-        if(processMessageResponse.InlineButtons == null)
-            await botClient.SendTextMessageAsync(
-                update.Message.Chat.Id,
-                processMessageResponse.ResponseMessage,
-                replyMarkup: StaticButtons.GetButtons(),
-                cancellationToken: CancellationToken);
-        else
-            await botClient.SendTextMessageAsync(
-                update.Message.Chat.Id,
-                processMessageResponse.ResponseMessage,
-                replyMarkup: processMessageResponse.InlineButtons,
-                cancellationToken: CancellationToken);
+            if(processMessageResponse.InlineButtons == null)
+                await botClient.SendTextMessageAsync(
+                    update.Message.Chat.Id,
+                    processMessageResponse.ResponseMessage,
+                    replyMarkup: StaticButtons.GetButtons(),
+                    cancellationToken: CancellationToken);
+            else
+                await botClient.SendTextMessageAsync(
+                    update.Message.Chat.Id,
+                    processMessageResponse.ResponseMessage,
+                    replyMarkup: processMessageResponse.InlineButtons,
+                    cancellationToken: CancellationToken);
+        } 
+        else if (update.CallbackQuery != null)
+        {
+            ProcessCallbackQueryData processCallbackQuery = 
+                new ProcessCallbackQueryData(update, CurrentMongoBase, CurrentApiCommands);
+
+            ProcessMessageResponse processMessageResponse = processCallbackQuery.ProcessCallbackQuery(update.CallbackQuery);
+            
+            if(processMessageResponse.InlineButtons == null)
+                await botClient.SendTextMessageAsync(
+                    update.CallbackQuery.From.Id,
+                    processMessageResponse.ResponseMessage,
+                    replyMarkup: StaticButtons.GetButtons(),
+                    cancellationToken: CancellationToken);
+            else
+                await botClient.SendTextMessageAsync(
+                    update.CallbackQuery.From.Id,
+                    processMessageResponse.ResponseMessage,
+                    replyMarkup: processMessageResponse.InlineButtons,
+                    cancellationToken: CancellationToken);
+        }
     }
 
     Task PollingErrorHandler(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)

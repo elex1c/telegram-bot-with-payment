@@ -11,15 +11,18 @@ namespace TelegramBotWithPayment.MongoDB;
 public class Commands
 {
     private MongoClient Client { get; }
-    private IMongoCollection<BsonDocument> BaseCollection { get; set; }
+    private IMongoCollection<BsonDocument> UserCollection { get; }
+    private IMongoCollection<BsonDocument> PaymentReceiptCollection { get; }
     private const string DataBaseName = "TelegramBotPaymentBase";
     private const string UsersCollectionName = "Users";
+    private const string PaymentReceiptCollectionName = "UserPaymentReceipt";
 
     public Commands(MongoClient client)
     {
         Client = client;
         
-        BaseCollection = Client.GetDatabase(DataBaseName).GetCollection<BsonDocument>(UsersCollectionName);
+        UserCollection = Client.GetDatabase(DataBaseName).GetCollection<BsonDocument>(UsersCollectionName);
+        PaymentReceiptCollection = Client.GetDatabase(DataBaseName).GetCollection<BsonDocument>(PaymentReceiptCollectionName);
     }
 
     public string GetValueFromBase(string valueName, string value, LongMethodsActions methodsAction)
@@ -28,7 +31,7 @@ public class Commands
         
         try
         {
-            string json = BaseCollection.Find(filter).First().ToJson();
+            string json = UserCollection.Find(filter).First().ToJson();
 
             json = ClearJsonObjectId(json);
             
@@ -36,13 +39,17 @@ public class Commands
             {
                 case LongMethodsActions.GetUserId:
                     return Methods.GetUserId(json);
+                case LongMethodsActions.GetStage:
+                    return Methods.GetSage(json);
+                case LongMethodsActions.GetCurrentValue:
+                    return Methods.GetCurrentValue(json);
                 default:
-                    return "0";
+                    return "";
             }
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            return "0";   
+            return "";   
         }
     }
 
@@ -56,7 +63,7 @@ public class Commands
 
         try
         {
-            BaseCollection.UpdateOne(filter, update);
+            UserCollection.UpdateOne(filter, update);
 
             return true;
         }
@@ -73,7 +80,7 @@ public class Commands
 
         try
         {
-            BaseCollection.Find(filter).First();
+            UserCollection.Find(filter).First();
 
             return true;
         }
@@ -93,9 +100,10 @@ public class Commands
             
         try
         {
-            string json = JsonConvert.SerializeObject(new UserStructure() { userid = userId, balance = "0", activeorder = "false", stage = "Start"});
+            string json = JsonConvert.SerializeObject(new UserStructure() 
+                { userid = userId, balance = "0", active_order = "false", stage = "Start", current_value = null });
             
-            BaseCollection.InsertOne(BsonDocument.Parse(json));
+            UserCollection.InsertOne(BsonDocument.Parse(json));
         }
         catch (Exception e)
         {
@@ -109,7 +117,7 @@ public class Commands
 
         try
         {
-            string json = BaseCollection.Find(filter).First().ToJson();
+            string json = UserCollection.Find(filter).First().ToJson();
 
             json = ClearJsonObjectId(json);
 
@@ -126,19 +134,6 @@ public class Commands
         }
     }
     
-    private static class Methods
-    {
-        public static string GetUserId(string json)
-        {
-            UserStructure? user = JsonConvert.DeserializeObject<UserStructure>(json);
-
-            if (user == null)
-                throw new NullReferenceException("User equals null");
-
-            return user.userid;
-        }
-    }
-
     private static string ClearJsonObjectId(string json)
     {
         json = json.Replace("(", "");
@@ -149,8 +144,46 @@ public class Commands
         return json;
     }
     
+    private static class Methods
+    {
+        private static UserStructure GetUserStructure(string json)
+        {
+            UserStructure? user = JsonConvert.DeserializeObject<UserStructure>(json);
+            
+            return user ?? throw new NullReferenceException("User equals null");
+        }
+        
+        public static string GetUserId(string json)
+        {
+            UserStructure user = GetUserStructure(json);
+
+            return user.userid;
+        }
+        
+        public static string GetSage(string json)
+        {
+            UserStructure user = GetUserStructure(json);
+
+            return user.stage;
+        }
+        
+        public static string GetCurrentValue(string json)
+        {
+            UserStructure user = GetUserStructure(json);
+
+            return user.current_value ?? "";
+        }
+    }
+
+    private class MongoCollectionSkull
+    {
+        public IMongoCollection<BsonDocument> Collection { get; }
+    }
+    
     public enum LongMethodsActions
     {
-        GetUserId
+        GetUserId,
+        GetStage,
+        GetCurrentValue
     }
 }

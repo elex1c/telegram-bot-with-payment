@@ -14,4 +14,15 @@ public class InlineButtons
 
         return inlineKeyboard;
     }
+    
+    public static IReplyMarkup GetConfirmDepositButtons()
+    {
+        InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(new InlineKeyboardButton[]
+        {
+            new InlineKeyboardButton("Change something") { CallbackData = "ContinuePayment" },
+            new InlineKeyboardButton("Confirm") { CallbackData = "ConfirmPayment" }
+        });
+
+        return inlineKeyboard;
+    }
 }

@@ -40,6 +40,8 @@ public class CrystalPayApiCommands
         if (checkerResult.ToLower().Contains("error"))
             return checkerResult;
 
+        
+        
         return responseObject.id + " " + responseObject.url;
     }
 

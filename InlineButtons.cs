@@ -25,4 +25,21 @@ public class InlineButtons
 
         return inlineKeyboard;
     }
+
+    public static IReplyMarkup GetPaymentLinkButton(string link)
+    {
+        InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                new InlineKeyboardButton("Pay") { Url = link }
+            },
+            new []
+            {
+                new InlineKeyboardButton("Check Payment") { CallbackData = "CheckPayment" }
+            }
+        });
+
+        return inlineKeyboard;
+    }
 }

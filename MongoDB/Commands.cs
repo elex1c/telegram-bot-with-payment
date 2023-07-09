@@ -11,8 +11,8 @@ namespace TelegramBotWithPayment.MongoDB;
 public class Commands
 {
     private MongoClient Client { get; }
-    private IMongoCollection<BsonDocument> UserCollection { get; }
-    private IMongoCollection<BsonDocument> PaymentReceiptCollection { get; }
+    private static IMongoCollection<BsonDocument> UserCollection { get; set; }
+    private static IMongoCollection<BsonDocument> PaymentReceiptCollection { get; set; }
     private const string DataBaseName = "TelegramBotPaymentBase";
     private const string UsersCollectionName = "Users";
     private const string PaymentReceiptCollectionName = "UserPaymentReceipt";
@@ -25,24 +25,30 @@ public class Commands
         PaymentReceiptCollection = Client.GetDatabase(DataBaseName).GetCollection<BsonDocument>(PaymentReceiptCollectionName);
     }
 
-    public string GetValueFromBase(string valueName, string value, LongMethodsActions methodsAction)
+    public string GetValueFromBase(string valueName, string value, MongoCollectionSkull skull, StructureMethods methods)
     {
         FilterDefinition<BsonDocument> filter = new FilterDefinitionBuilder<BsonDocument>().Eq(valueName, value);
         
         try
         {
-            string json = UserCollection.Find(filter).First().ToJson();
+            string json = skull.Collection.Find(filter).First().ToJson();
 
             json = ClearJsonObjectId(json);
             
-            switch (methodsAction)
+            switch (methods)
             {
-                case LongMethodsActions.GetUserId:
+                case StructureMethods.GetUserId:
                     return Methods.GetUserId(json);
-                case LongMethodsActions.GetStage:
+                case StructureMethods.GetStage:
                     return Methods.GetSage(json);
-                case LongMethodsActions.GetCurrentValue:
+                case StructureMethods.GetCurrentValue:
                     return Methods.GetCurrentValue(json);
+                case StructureMethods.GetActiveOrder:
+                    return Methods.GetActiveOrder(json);
+                case StructureMethods.GetReceiptId:
+                    return Methods.GetReceiptId(json);
+                case StructureMethods.GetAmount:
+                    return Methods.GetPaymentAmount(json);
                 default:
                     return "";
             }
@@ -53,17 +59,17 @@ public class Commands
         }
     }
 
-    public bool UpdateValue<T>(string valueName, T searchingValue, string updatedValueName, T insertedValue)
+    public bool UpdateValue<T>(string searchingValueName, T searchingValue, string updatedValueName, T insertedValue, MongoCollectionSkull skull)
     {
         FilterDefinition<BsonDocument> filter =
-            new FilterDefinitionBuilder<BsonDocument>().Eq(valueName, searchingValue);
+            new FilterDefinitionBuilder<BsonDocument>().Eq(searchingValueName, searchingValue);
 
         UpdateDefinition<BsonDocument> update = 
             new UpdateDefinitionBuilder<BsonDocument>().Set(updatedValueName, insertedValue);
 
         try
         {
-            UserCollection.UpdateOne(filter, update);
+            skull.Collection.UpdateOne(filter, update);
 
             return true;
         }
@@ -73,14 +79,14 @@ public class Commands
         }
     }
 
-    public bool IsValue<T>(string valueName, T checkingValue)
+    public bool IsValue<T>(string checkingValueName, T checkingValue, MongoCollectionSkull skull)
     {
         FilterDefinition<BsonDocument>
-            filter = new FilterDefinitionBuilder<BsonDocument>().Eq(valueName, checkingValue);
+            filter = new FilterDefinitionBuilder<BsonDocument>().Eq(checkingValueName, checkingValue);
 
         try
         {
-            UserCollection.Find(filter).First();
+            skull.Collection.Find(filter).First();
 
             return true;
         }
@@ -93,9 +99,9 @@ public class Commands
         }
     }
 
-    public void AddUser(string userId)
+    public void AddUser(string userId, MongoCollectionSkull skull)
     {
-        if (IsValue("userid", userId))
+        if (IsValue("userid", userId, skull))
             return;
             
         try
@@ -111,22 +117,36 @@ public class Commands
         }
     }
 
-    public UserStructure GetUser(string userId)
+    public void AddReceipt(PaymentReceiptStructure paymentStructure)
+    {
+        try
+        {
+            string json = JsonConvert.SerializeObject(paymentStructure);
+            
+            PaymentReceiptCollection.InsertOne(BsonDocument.Parse(json));
+        }
+        catch (Exception e)
+        {
+            throw new Exception(e.Message);
+        }
+    }
+    
+    public ICollectionStructures GetUser(string userId, MongoCollectionSkull skull)
     {
         FilterDefinition<BsonDocument> filter = new FilterDefinitionBuilder<BsonDocument>().Eq("userid", userId);
 
         try
         {
-            string json = UserCollection.Find(filter).First().ToJson();
+            string json = skull.Collection.Find(filter).First().ToJson();
 
             json = ClearJsonObjectId(json);
 
-            UserStructure? user = JsonConvert.DeserializeObject<UserStructure>(json);
+            skull.Structure = JsonConvert.DeserializeObject<UserStructure>(json);
 
-            if (user == null)
+            if (skull.Structure == null)
                 throw new Exception("User eqauls null");
 
-            return user;
+            return skull.Structure;
         }
         catch (Exception e)
         {
@@ -138,7 +158,6 @@ public class Commands
     {
         json = json.Replace("(", "");
         json = json.Replace(")", "");
-        json = json.Replace("_", "");
         json = json.Replace("ObjectId", "");
 
         return json;
@@ -151,6 +170,13 @@ public class Commands
             UserStructure? user = JsonConvert.DeserializeObject<UserStructure>(json);
             
             return user ?? throw new NullReferenceException("User equals null");
+        }
+
+        private static PaymentReceiptStructure GetPaymentStructure(string json)
+        {
+            PaymentReceiptStructure? payment = JsonConvert.DeserializeObject<PaymentReceiptStructure>(json);
+            
+            return payment ?? throw new NullReferenceException("Payment equals null");
         }
         
         public static string GetUserId(string json)
@@ -173,17 +199,65 @@ public class Commands
 
             return user.current_value ?? "";
         }
+        
+        public static string GetActiveOrder(string json)
+        {
+            UserStructure user = GetUserStructure(json);
+
+            return user.active_order ?? "";
+        }
+
+        public static string GetReceiptId(string json)
+        {
+            PaymentReceiptStructure payment = GetPaymentStructure(json);
+
+            return payment.receipt_id ?? "";
+        }
+
+        public static string GetPaymentAmount(string json)
+        {
+            PaymentReceiptStructure payment = GetPaymentStructure(json);
+
+            return payment.amount ?? "";
+        }
     }
 
-    private class MongoCollectionSkull
+    public class MongoCollectionSkull
     {
         public IMongoCollection<BsonDocument> Collection { get; }
+        public ICollectionStructures? Structure { get; set; }
+        
+        public MongoCollectionSkull(CollectionNames name, ICollectionStructures structure)
+        {
+            switch (name)
+            {
+                case CollectionNames.UserCollection:
+                    Collection = UserCollection;
+                    break;
+                case CollectionNames.PaymentReceiptCollection:
+                    Collection = PaymentReceiptCollection;
+                    break;
+            }
+
+            Structure = structure;
+        }
+
+        public enum CollectionNames
+        {
+            UserCollection,
+            PaymentReceiptCollection
+        }
     }
-    
-    public enum LongMethodsActions
+
+    public enum StructureMethods
     {
         GetUserId,
         GetStage,
-        GetCurrentValue
+        GetCurrentValue,
+        GetActiveOrder,
+        GetReceiptId,
+        GetAmount,
+        GetReceiptUrl,
+        GetCompleted
     }
 }

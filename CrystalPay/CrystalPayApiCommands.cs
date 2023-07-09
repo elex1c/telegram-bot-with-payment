@@ -1,6 +1,8 @@
 using System.Data;
+using System.Globalization;
 using System.Text;
 using Newtonsoft.Json;
+using TelegramBotWithPayment.CrystalPay.CrystalPayStructures;
 
 namespace TelegramBotWithPayment.CrystalPay;
 
@@ -17,11 +19,14 @@ public class CrystalPayApiCommands
         AuthorizationSecret = authorizationSecret;
     }
     
-    public async Task<string> CreatePaymentInvoice(double invoiceAmount)
+    public async Task<InvoiceStructure> CreatePaymentInvoice(double invoiceAmount)
     {
+        string doubleAmountInStr = Convert.ToString(invoiceAmount, CultureInfo.CurrentCulture);
+        doubleAmountInStr = doubleAmountInStr.Replace(',', '.');
+        
         string json = "{\"auth_login\":\"" + AuthorizationLogin + "\","
             + "\"auth_secret\":\"" + AuthorizationSecret + "\","
-            + "\"amount\":" + invoiceAmount + ","
+            + "\"amount\":" + doubleAmountInStr + ","
             + "\"amount_currency\":\"USD\","
             + "\"type\":\"purchase\","
             + "\"lifetime\":60}";
@@ -38,11 +43,15 @@ public class CrystalPayApiCommands
         string checkerResult = DynamicErrorChecker(responseObject);
 
         if (checkerResult.ToLower().Contains("error"))
-            return checkerResult;
+            return new InvoiceStructure() { Erros = true };
 
-        
-        
-        return responseObject.id + " " + responseObject.url;
+        InvoiceStructure invoice = new()
+        {
+            InvoiceId = responseObject?.id,
+            InvoiceUrl = responseObject?.url
+        };
+
+        return invoice;
     }
 
     public async Task<string> GetInvoiceInfo(string invoiceId)
@@ -67,7 +76,7 @@ public class CrystalPayApiCommands
 
         string state = responseObject.state;
 
-        return state == "payed" ? "Order is payed" : "Order isn't payed";
+        return state == "payed" ? "payed" : "notpayed";
     }
 
     private string DynamicErrorChecker(dynamic? d)

@@ -8,7 +8,7 @@ namespace TelegramBotWithPayment;
 
 public class TelegramBotHandling
 {
-    private CancellationToken CancellationToken { get; set; } = new CancellationToken();
+    private CancellationToken CancellationToken { get; } = new CancellationToken();
     private MongoBase CurrentMongoBase { get; }
     private CrystalPayApiCommands CurrentApiCommands { get; }
     
@@ -17,11 +17,9 @@ public class TelegramBotHandling
         CurrentMongoBase = mongoBase;
         CurrentApiCommands = currentApiCommands;
     }
-    public Task StartTelegramBotHandling(ITelegramBotClient botClient)
+    public void StartTelegramBotHandling(ITelegramBotClient botClient)
     {
         botClient.StartReceiving(UpdateHandler, PollingErrorHandler, cancellationToken: CancellationToken);
-
-        return Task.CompletedTask;
     }
 
     async Task UpdateHandler(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
@@ -32,9 +30,6 @@ public class TelegramBotHandling
         
             ProcessMessageResponse processMessageResponse = processMessageHandler.Process(update);
 
-            if (processMessageResponse.ResponseMessage is "Error" or "Sequence contains no elements")
-                return;
-        
             if(processMessageResponse.InlineButtons == null)
                 await botClient.SendTextMessageAsync(
                     update.Message.Chat.Id,
@@ -53,7 +48,7 @@ public class TelegramBotHandling
             ProcessCallbackQueryData processCallbackQuery = 
                 new ProcessCallbackQueryData(update, CurrentMongoBase, CurrentApiCommands);
 
-            ProcessMessageResponse processMessageResponse = processCallbackQuery.ProcessCallbackQuery(update.CallbackQuery);
+            ProcessMessageResponse processMessageResponse = await processCallbackQuery.ProcessCallbackQuery(update.CallbackQuery);
             
             if(processMessageResponse.InlineButtons == null)
                 await botClient.SendTextMessageAsync(

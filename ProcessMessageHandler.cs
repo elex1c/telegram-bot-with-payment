@@ -38,6 +38,10 @@ public class ProcessMessageHandler
 
                     ProcessMessageResponse = ProcessTextMessage(update.Message.Text, username);
                 }
+                else
+                {
+                    return new ProcessMessageResponse("You have sent incorrect type of message!");
+                }
                 break;
             default:
                 return new ProcessMessageResponse("You have sent incorrect type of message!");
@@ -83,11 +87,12 @@ public class ProcessMessageHandler
                         if (sumResult == 0)
                             return new ProcessMessageResponse("The deposit sum should be more than 5 and less than 500💲");
                         if (sumResult == 1)
-                            return new ProcessMessageResponse("You have send incorrect type of message❗ \nExample ➜ 23.75");
+                            return new ProcessMessageResponse("You have send incorrect type of message❗ \nExample ➜ 23,75");
                         
                         SetStage("ConfirmPayment");
+                        SetCurrentValue($"{sumResult}");
                         
-                        ResponseMessage = $"Do you want to continue payment in {sumResult}💲 ❓";
+                        ResponseMessage = $"Do you want to continue payment in {sumResult}💲 ?";
 
                         return new ProcessMessageResponse(ResponseMessage, InlineButtons.GetConfirmDepositButtons());
                     default:
@@ -111,7 +116,7 @@ public class ProcessMessageHandler
 
             if (value is > 5 and < 500)
                 return value;
-            
+
             return 0;
         }
         catch (Exception)
@@ -122,25 +127,36 @@ public class ProcessMessageHandler
     
     private string GetMenu()
     {
-        if (!CurrentMongoBase.Commands.IsValue("userid", Convert.ToString(UserId)))
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
+        if (!CurrentMongoBase.Commands.IsValue("userid", Convert.ToString(UserId), skull))
             return "Error";
         
-        UserStructure user = CurrentMongoBase.Commands.GetUser(Convert.ToString(UserId));
+        UserStructure user = (UserStructure)CurrentMongoBase.Commands.GetUser(Convert.ToString(UserId), skull);
+
+        string activePayment = user.active_order == "true" ? "✅" : "❌";
         
-        string menu = $"⚙️Account ID: {UserId}⚙️\n💰Balance: {user.balance}💰\n💳Active Payment: {user.active_order}💳";
+        string menu = $"⚙️Account ID: {UserId}⚙️\n💰Balance: {user.balance}💰\n💳Active Payment: {activePayment}💳";
 
         return menu;
     }
 
     private string GetStage()
     {
-        return CurrentMongoBase.Commands.GetValueFromBase("userid", $"{UserId}", Commands.LongMethodsActions.GetStage);
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
+        return CurrentMongoBase.Commands.GetValueFromBase("userid", $"{UserId}", skull, Commands.StructureMethods.GetStage);
     }
 
     private void SetStage(string stageName)
     {
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
         bool result = CurrentMongoBase.Commands
-            .UpdateValue("userid", $"{UserId}", "stage", stageName);
+            .UpdateValue("userid", $"{UserId}", "stage", stageName, skull);
 
         if (!result)
             throw new Exception("Error with DataBase ( ProcessMessageHandler -> UpdateUserStage() )");
@@ -148,13 +164,19 @@ public class ProcessMessageHandler
     
     private string GetCurrentValue()
     {
-        return CurrentMongoBase.Commands.GetValueFromBase("userid", $"{UserId}", Commands.LongMethodsActions.GetCurrentValue);
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
+        return CurrentMongoBase.Commands.GetValueFromBase("userid", $"{UserId}", skull, Commands.StructureMethods.GetCurrentValue);
     }
     
     private void SetCurrentValue(string currentValue)
     {
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
         bool result = CurrentMongoBase.Commands
-            .UpdateValue("userid", $"{UserId}", "current_value", currentValue);
+            .UpdateValue("userid", $"{UserId}", "current_value", currentValue, skull);
 
         if (!result)
             throw new Exception("Error with DataBase ( ProcessMessageHandler -> UpdateUserStage() )");
@@ -162,9 +184,12 @@ public class ProcessMessageHandler
     
     private void AddUserInDatabase()
     {
+        Commands.MongoCollectionSkull skull = new Commands.MongoCollectionSkull(Commands.MongoCollectionSkull.CollectionNames.UserCollection,
+            new UserStructure());
+        
         try
         {
-            CurrentMongoBase.Commands.AddUser(Convert.ToString(UserId));
+            CurrentMongoBase.Commands.AddUser(Convert.ToString(UserId), skull);
         }
         catch (Exception)
         {

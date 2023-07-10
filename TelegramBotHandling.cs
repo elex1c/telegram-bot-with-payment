@@ -46,7 +46,7 @@ public class TelegramBotHandling
         else if (update.CallbackQuery != null)
         {
             ProcessCallbackQueryData processCallbackQuery = 
-                new ProcessCallbackQueryData(update, CurrentMongoBase, CurrentApiCommands);
+                new ProcessCallbackQueryData(botClient, update, CurrentMongoBase, CurrentApiCommands);
 
             ProcessMessageResponse processMessageResponse = await processCallbackQuery.ProcessCallbackQuery(update.CallbackQuery);
             

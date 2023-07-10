@@ -1,4 +1,5 @@
 using System.Globalization;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using TelegramBotWithPayment.CrystalPay;
 using TelegramBotWithPayment.CrystalPay.CrystalPayStructures;
@@ -11,12 +12,15 @@ public class ProcessCallbackQueryData
 {
     private Update CurrentUpdate { get; }
     private MongoBase CurrentMongoBase { get; }
+    private ITelegramBotClient BotClient { get; }
     private long UserId { get; set; }
     private CrystalPayApiCommands CrystalPayApiCommands { get; }
     private string ResponseMessage { get; set; }
-
-    public ProcessCallbackQueryData(Update currentUpdate, MongoBase currentMongoBase, CrystalPayApiCommands crystalPayApiCommands)
+    private PaymentTimer Timer { get; set; }
+    
+    public ProcessCallbackQueryData(ITelegramBotClient botClient, Update currentUpdate, MongoBase currentMongoBase, CrystalPayApiCommands crystalPayApiCommands)
     {
+        BotClient = botClient;
         CurrentUpdate = currentUpdate;
         CurrentMongoBase = currentMongoBase;
         CrystalPayApiCommands = crystalPayApiCommands;
@@ -53,6 +57,8 @@ public class ProcessCallbackQueryData
                 if (messageConfirmPaymentResponse.InlineButtons != null)
                     UpdateUserStage("WaitingForPayment");
 
+                Timer = new PaymentTimer(CurrentMongoBase, BotClient, UserId);
+                
                 return messageConfirmPaymentResponse;
             case "CheckPayment":
                 if (!HasUserActiveOrder())
@@ -87,7 +93,9 @@ public class ProcessCallbackQueryData
         
         UserStructure user = (UserStructure)CurrentMongoBase.Commands.GetUser(Convert.ToString(UserId), skull);
 
-        string menu = $"⚙️Account ID: {UserId}⚙️\n💰Balance: {user.balance}💰\n💳Active Payment: {user.active_order}💳";
+        string activePayment = user.active_order == "true" ? "✅" : "❌";
+
+        string menu = $"⚙️Account ID: {UserId}⚙️\n💰Balance: {user.balance}💰\n💳Active Payment: {activePayment}💳";
 
         return menu;
     }
